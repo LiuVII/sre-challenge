@@ -1,0 +1,8 @@
+# config-sync/environments/prod/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-app
+  labels:
+    environment: production
+    managed-by: configsync

@@ -1,0 +1,8 @@
+# config-sync/environments/staging/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: todo-app
+  labels:
+    environment: staging
+    managed-by: configsync
