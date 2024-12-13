@@ -1,0 +1,13 @@
+# helm/postgres/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.db_config }}
+  namespace: {{ .Release.Namespace }}
+data:
+  DB_NAME: {{ .Values.database.name }}
+  DB_PORT: "{{ .Values.primary.port }}"
+  DB_SCHEMA: {{ .Values.database.schema }}
+  DB_HOST: {{ .Values.primary.name }}
+  DB_APP_USER: {{ .Values.users.app }}
+  DB_MIGRATOR_USER: {{ .Values.users.migrator }}

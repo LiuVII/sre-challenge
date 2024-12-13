@@ -1,0 +1,115 @@
+# helm/postgres/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.primary.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: {{ .Values.primary.name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.primary.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.primary.name }}
+    spec:
+      securityContext:
+        fsGroup: 999
+        # runAsUser: 999
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: {{ .Values.tolerations_workload_name }}
+        effect: NoSchedule
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - postgres
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.database.name }}
+            - name: POSTGRES_USER
+              value: {{ .Values.users.superuser }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: postgres-password
+            - name: APP_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: app-user-password
+            - name: MIGRATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: migrator-password
+            - name: REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: replication-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: postgres-config
+              mountPath: /etc/postgresql
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+          securityContext:
+            # TODO: consider adding readonlyfilesystem
+            # readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              memory: {{ .Values.primary.resources.requests.memory | quote }}
+              cpu: {{ .Values.primary.resources.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.primary.resources.limits.memory | quote }}
+              cpu: {{ .Values.primary.resources.limits.cpu | quote }}
+      volumes:
+        - name: postgres-config
+          configMap:
+            name: {{ .Values.primary.config_name }}
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
+              - key: pg_hba.conf
+                path: pg_hba.conf
+        - name: postgres-init
+          configMap:
+            name: {{ .Values.primary.config_name }}
+            items:
+              - key: init-users.sh
+                path: init-users.sh
+                mode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.primary.persistence.size }}

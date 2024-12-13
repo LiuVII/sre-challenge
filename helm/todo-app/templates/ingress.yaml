@@ -1,0 +1,27 @@
+# helm/todo-app/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.ingress.gcp }}
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: {{ .Values.ingress.ipName }}
+    networking.gke.io/managed-certificates: {{ .Values.ingress.cert }}
+  {{- end }}
+spec:
+  rules:
+  {{- if .Values.ingress.gcp }}
+  - host: {{ .Values.ingress.host }}
+    http:
+  {{- else }}
+  - http:
+  {{- end }}
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Chart.Name }}
+            port:
+              number: 80

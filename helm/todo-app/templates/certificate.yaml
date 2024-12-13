@@ -1,0 +1,11 @@
+# helm/todo-app/templates/certificate.yaml
+{{- if .Values.ingress.gcp }}
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: {{ .Values.ingress.cert }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  domains:
+    - {{ .Values.ingress.host }}
+{{- end }}

@@ -1,0 +1,29 @@
+<!-- src/app/templates/error.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error - Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .error-msg {
+            margin-top: 50px;
+            padding: 20px;
+            background-color: #fff3f3;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-msg">
+        <h1>⚠️ Error</h1>
+        <p>{{ error }}</p>
+        <a href="{{ url_for('index') }}">Return to home</a>
+    </div>
+</body>
+</html>

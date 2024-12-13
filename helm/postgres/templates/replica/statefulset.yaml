@@ -1,0 +1,141 @@
+# helm/postgres/templates/replica/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.replica.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: {{ .Values.replica.name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.replica.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.replica.name }}
+    spec:
+      # TODO: consider adding readonlyfilesystem
+      securityContext:
+        fsGroup: 999
+        # runAsUser: 999
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: {{ .Values.tolerations_workload_name }}
+        effect: NoSchedule
+      initContainers:
+        - name: init-replica
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              if [ ! -s "$PGDATA/PG_VERSION" ]; then
+                echo "Waiting for primary..."
+                export PGPASSWORD="${REPLICATION_PASSWORD}"
+                until pg_isready -h {{ .Values.primary.name }} -p {{ .Values.primary.port }} -U {{ .Values.users.replicator }} -d {{ .Values.database.name }} ; do
+                  sleep 2
+                done
+
+                echo "Taking base backup..."
+                pg_basebackup -h {{ .Values.primary.name }} \
+                            -D ${PGDATA} \
+                            -U {{ .Values.users.replicator }} \
+                            -v -P \
+                            --wal-method=stream
+                
+                # Configure streaming replication
+                touch "${PGDATA}/standby.signal"
+                REPL_CONFIG="primary_conninfo = 'host={{ .Values.primary.name }} port={{ .Values.primary.port }} user={{ .Values.users.replicator }} password=${REPLICATION_PASSWORD}'"
+                echo "$REPL_CONFIG" > "${PGDATA}/postgresql.auto.conf"
+              fi
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: replication-password
+          resources:
+            requests:
+              memory: {{ .Values.replica.resources.requests.memory | quote }}
+              cpu: {{ .Values.replica.resources.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.replica.resources.limits.memory | quote }}
+              cpu: {{ .Values.replica.resources.limits.cpu | quote }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: postgres-config
+              mountPath: /etc/postgresql
+          securityContext:
+            allowPrivilegeEscalation: false
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.database.name }}
+            - name: POSTGRES_USER
+              value: {{ .Values.users.superuser }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: postgres-password
+            - name: REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: replication-password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: postgres-config
+              mountPath: /etc/postgresql
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              memory: {{ .Values.replica.resources.requests.memory | quote }}
+              cpu: {{ .Values.replica.resources.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.replica.resources.limits.memory | quote }}
+              cpu: {{ .Values.replica.resources.limits.cpu | quote }}
+      volumes:
+        - name: postgres-config
+          configMap:
+            name: {{ .Values.primary.config_name }}
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
+              - key: pg_hba.conf
+                path: pg_hba.conf
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.replica.persistence.size }}

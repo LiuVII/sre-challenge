@@ -1,0 +1,13 @@
+# helm/postgres/templates/primary/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.primary.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Values.primary.name }}
+  ports:
+    - port: {{ .Values.primary.port }}
+      targetPort: {{ .Values.primary.port }}
+  clusterIP: None # Headless service for StatefulSet

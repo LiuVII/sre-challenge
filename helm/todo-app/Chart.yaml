@@ -1,0 +1,6 @@
+# helm/todo-app/Chart.yaml
+apiVersion: v2
+name: todo-app
+description: Todo application with PostgreSQL backend
+version: 0.1.0
+    

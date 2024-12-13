@@ -1,0 +1,39 @@
+# helm/todo-app/values.yaml
+namespace: todo_app
+tolerations_workload_name: application
+
+image:
+  repository: todo-app
+  tag: latest
+  pullPolicy: Never
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 200m
+    memory: 512Mi
+
+replicas: 3
+
+config:
+  db_config: db-config 
+  postgres_creds: postgres-creds
+
+migrations:
+  context: stage
+  image:
+    repository: todo-app-migrations
+    tag: latest
+    pullPolicy: Never
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+ingress:
+  gcp: false

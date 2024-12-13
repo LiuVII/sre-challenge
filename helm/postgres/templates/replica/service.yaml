@@ -1,0 +1,13 @@
+# helm/postgres/templates/replica/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.replica.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Values.replica.name }}
+  ports:
+    - port: {{ .Values.replica.port }}
+      targetPort: {{ .Values.replica.port }}
+  clusterIP: None # Headless service for StatefulSet

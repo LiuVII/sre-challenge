@@ -1,0 +1,72 @@
+# migrations/changelog-master.yaml
+databaseChangeLog:
+  - preConditions:
+      - or:
+          - and:
+              - context: dev
+              - runningAs:
+                  username: todo_app_user
+          - and:
+              - context: stage
+              - runningAs:
+                  username: todo_app_migrator
+          - and:
+              - context: prod
+              - runningAs:
+                  username: todo_app_migrator
+
+  # Note: we make schema here in docker-compose made dev to simplify setup
+  - changeSet:
+      id: create-init-schema-0
+      author: LiuVII
+      context: dev
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS todo_app
+      rollback:
+        - sql:
+            sql: DROP SCHEMA IF EXISTS todo_app CASCADE
+  
+  - changeSet:
+      id: init-schema-1
+      author: LiuVII
+      changes:
+        - createTable:
+            schemaName: todo_app
+            tableName: todos
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_todos
+              - column:
+                  name: title
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: completed
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - createIndex:
+            schemaName: todo_app
+            indexName: idx_todos_created_at
+            tableName: todos
+            columns:
+              - column:
+                  name: created_at
+      rollback:
+        - dropTable:
+            schemaName: todo_app
+            tableName: todos

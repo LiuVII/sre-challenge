@@ -1,0 +1,19 @@
+# helm/postgres/templates/replica/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.replica.config_name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  postgresql.conf: |
+    listen_addresses = '*'
+    max_connections = 100
+    shared_buffers = 128MB
+    hot_standby = on
+    hba_file = '/etc/postgresql/pg_hba.conf'
+    
+  pg_hba.conf: |
+    local   all             {{ .Values.users.superuser }}                                trust
+    host    all             {{ .Values.users.superuser }}         127.0.0.1/32          scram-sha-256
+    host    all             {{ .Values.users.superuser }}         ::1/128               scram-sha-256
+    host    {{ .Values.database.name }}      {{ .Values.users.app }}         0.0.0.0/0         scram-sha-256

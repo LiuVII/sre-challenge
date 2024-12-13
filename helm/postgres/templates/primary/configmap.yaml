@@ -1,0 +1,94 @@
+# helm/postgres/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.primary.config_name }}
+  namespace: {{ .Release.Namespace }}
+data:
+  postgresql.conf: |
+    listen_addresses = '*'
+    max_connections = 100
+    shared_buffers = 128MB
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    hot_standby = on
+    hba_file = '/etc/postgresql/pg_hba.conf'
+    
+  pg_hba.conf: |
+    # Local connections - using trust for superuser local connections
+    local   all             {{ .Values.users.superuser }}                                trust
+    host    all             {{ .Values.users.superuser }}         127.0.0.1/32          scram-sha-256
+    host    all             {{ .Values.users.superuser }}         ::1/128               scram-sha-256
+    
+    # Replication
+    local   replication     {{ .Values.users.superuser }}                               trust
+    host    replication     all              127.0.0.1/32         scram-sha-256
+    host    replication     all              ::1/128              scram-sha-256
+    host    replication     {{ .Values.users.replicator }}       0.0.0.0/0           scram-sha-256
+    host    {{ .Values.database.name }}           {{ .Values.users.replicator }}       0.0.0.0/0        scram-sha-256
+    
+    # Application and migrator access
+    host    {{ .Values.database.name }}           {{ .Values.users.app }}       0.0.0.0/0        scram-sha-256
+    host    {{ .Values.database.name }}           {{ .Values.users.migrator }}   0.0.0.0/0        scram-sha-256
+
+  init-users.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    echo "Waiting for database to be ready..."
+    until pg_isready -p {{ .Values.primary.port }} -U {{ .Values.users.superuser }}; do
+      sleep 2
+    done
+
+    export PGDATABASE="${POSTGRES_DB}"
+    
+    echo "Creating schema..."
+    psql -v ON_ERROR_STOP=1 <<EOSQL
+    CREATE SCHEMA IF NOT EXISTS {{ .Values.database.schema }};
+    EOSQL
+    
+    echo "Creating users..."
+    psql -v ON_ERROR_STOP=1 <<EOSQL
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '{{ .Values.users.replicator }}') THEN
+        CREATE USER {{ .Values.users.replicator }} WITH REPLICATION PASSWORD '${REPLICATION_PASSWORD}';
+      END IF;
+    END \$\$;
+    
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '{{ .Values.users.app }}') THEN
+        CREATE USER {{ .Values.users.app }} WITH PASSWORD '${APP_USER_PASSWORD}';
+      END IF;
+    END \$\$;
+    
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '{{ .Values.users.migrator }}') THEN
+        CREATE USER {{ .Values.users.migrator }} WITH PASSWORD '${MIGRATOR_PASSWORD}';
+      END IF;
+    END \$\$;
+    EOSQL
+    
+    echo "Setting up permissions..."
+    psql -v ON_ERROR_STOP=1 <<EOSQL
+    GRANT USAGE ON SCHEMA {{ .Values.database.schema }} TO {{ .Values.users.app }};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA {{ .Values.database.schema }}
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ .Values.users.app }};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA {{ .Values.database.schema }}
+      GRANT USAGE ON SEQUENCES TO {{ .Values.users.app }};
+    
+    GRANT ALL ON SCHEMA public TO {{ .Values.users.migrator }};
+    GRANT USAGE, CREATE ON SCHEMA {{ .Values.database.schema }} TO {{ .Values.users.migrator }};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA {{ .Values.database.schema }}
+      GRANT ALL ON TABLES TO {{ .Values.users.migrator }};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA {{ .Values.database.schema }}
+      GRANT ALL ON SEQUENCES TO {{ .Values.users.migrator }};
+
+    ALTER DEFAULT PRIVILEGES FOR ROLE {{ .Values.users.migrator }} IN SCHEMA {{ .Values.database.schema }}
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ .Values.users.app }};
+    ALTER DEFAULT PRIVILEGES FOR ROLE {{ .Values.users.migrator }} IN SCHEMA {{ .Values.database.schema }}
+      GRANT USAGE ON SEQUENCES TO {{ .Values.users.app }};
+    EOSQL

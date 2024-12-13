@@ -1,0 +1,15 @@
+# helm/todo-app/values-gcp.yaml
+ingress:
+  gcp: true
+  ipName: "${IP_NAME}"
+  cert: todo-app-cert
+  host: "${IP_ADDRESS}.nip.io"
+
+image:
+  repository: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY_ID}/todo-app
+  pullPolicy: IfNotPresent 
+
+migrations:
+  image:
+    repository: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY_ID}/todo-app-migrations
+    pullPolicy: IfNotPresent

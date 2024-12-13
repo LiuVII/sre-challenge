@@ -1,0 +1,16 @@
+# helm/todo-app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  # TODO: add backend config that points to cloud armor security policy and enable this config
+  # annotations:
+  #   cloud.google.com/backend-config: '{"default": "cloud-armor-config"}'
+spec:
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP

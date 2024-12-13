@@ -1,0 +1,6 @@
+# helm/postgres/Chart.yaml
+apiVersion: v2
+name: postgres
+description: PostgreSQL with primary-replica setup
+version: 0.1.0
+appVersion: "16"

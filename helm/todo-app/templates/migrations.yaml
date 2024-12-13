@@ -1,0 +1,68 @@
+# helm/todo-app/templates/migrations.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ .Chart.Name }}-migrations"
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      tolerations:
+      - key: workload
+        operator: Equal
+        value: {{ .Values.tolerations_workload_name }}
+        effect: NoSchedule
+      containers:
+        - name: migrations
+          image: "{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              liquibase \
+                --url=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME} \
+                update
+          env:
+            - name: LIQUIBASE_COMMAND_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.config.db_config }}
+                  key: DB_MIGRATOR_USER
+            - name: LIQUIBASE_COMMAND_CONTEXT_FILTER
+              value: {{ .Values.migrations.context }}
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.config.db_config }}
+                  key: DB_HOST
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.config.db_config }}
+                  key: DB_NAME
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.config.db_config }}
+                  key: DB_PORT
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: migrator-password
+          # TODO: add proper sec context
+          # securityContext:
+          #   readOnlyRootFilesystem: true
+          #   runAsNonRoot: true
+          #   runAsUser: 1000
+          resources:
+            requests:
+              memory: {{ .Values.migrations.resources.requests.memory | quote }}
+              cpu: {{ .Values.migrations.resources.requests.cpu | quote }}
+            limits:
+              memory: {{ .Values.migrations.resources.limits.memory | quote }}
+              cpu: {{ .Values.migrations.resources.limits.cpu | quote }}
+      
