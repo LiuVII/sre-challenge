@@ -1,0 +1,128 @@
+# .github/workflows/pr.yaml
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+      application: ${{ steps.filter.outputs.application }}
+      appinfra: ${{ steps.filter.outputs.appinfra }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+            application:
+              - 'src/**'
+            appinfra:
+              - 'helm/**'
+            migrations:
+              - 'migrations/**'
+
+  terraform-validation:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        name: Setup TFLint
+        with:
+          tflint_version: "0.54.0"
+
+      - name: Run tflint
+        run: tflint --chdir=terraform -c $(pwd)/.tflint.hcl --recursive
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "~1.8"
+
+      - name: Terraform Format Check
+        run: tofu fmt -check -recursive
+
+      # Note: we can do this smarter but for this small repo we don't have to
+      - name: Terraform Validate
+        run: |
+          cd terraform/0-project
+          tofu init -backend=false
+          tofu validate
+          cd ../1-environments/staging
+          tofu init -backend=false
+          tofu validate
+          cd ../1-environments/prod
+          tofu init -backend=false
+          tofu validate
+
+  application-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/requirements.txt
+          
+      - name: Run tests
+        run: pytest src/tests/
+
+  helm-validation:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.appinfra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+          
+      - name: Lint Helm Charts
+        run: |
+          helm lint helm/todo-app/
+          helm lint helm/postgres/
+          
+      - name: Template Validation
+        run: |
+          helm template todo-app helm/todo-app/
+          helm template postgres helm/postgres/
+  
+  build-check:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.application == 'true' ||
+      needs.detect-changes.outputs.appinfra == 'true' ||
+      needs.detect-changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Images
+        uses: ./.github/actions/build-push-images
+        with:
+          push_images: 'false'
+          gcp_project_id: ${{ vars.GCP_PROJECT_ID_S }}
+          gcp_region: ${{ vars.GCP_REGION }}
+          registry: ${{ vars.GCP_REGISTRY }}
+          image_tag: ${{ github.sha }}
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GHA_SA_EMAIL }}

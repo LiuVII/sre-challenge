@@ -1,0 +1,25 @@
+# .github/workflows/build.yaml
+name: Build and Push Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and Push Images
+        uses: ./.github/actions/build-push-images
+        with:
+          push_images: 'true'
+          gcp_project_id: ${{ vars.GCP_PROJECT_ID_S }}
+          gcp_region: ${{ vars.GCP_REGION }}
+          registry: ${{ vars.GCP_REGISTRY }}
+          image_tag: ${{ github.sha }}
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GHA_SA_EMAIL }}
