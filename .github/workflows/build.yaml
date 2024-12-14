@@ -21,7 +21,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      
+      - name: Validate and process tag
+        id: tag
+        run: |
+          # Check if tag exists
+          if ! git show-ref --tags | grep -q "refs/tags/${TAG}$"; then
+            echo "Error: Tag ${TAG} does not exist in repository"
+            exit 1
+          fi
+          
+          # Validate tag format starts with 'v'
+          if [[ ! $TAG =~ ^v[0-9].* ]]; then
+            echo "Error: Tag must start with 'v' followed by version number"
+            exit 1
+          fi
+          
+          # Strip 'v' prefix for Docker tag
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Using version: ${VERSION} from tag: ${TAG}"
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    
       - name: Build and Push Images
         uses: ./.github/actions/build-push-images
         with:
@@ -29,6 +51,6 @@ jobs:
           gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
           gcp_region: ${{ vars.GCP_REGION }}
           registry: ${{ vars.GCP_REGISTRY }}
-          image_tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          image_tag: ${{ steps.tag.outputs.version }}
           workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GHA_SA_EMAIL }}
