@@ -5,6 +5,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to use for build'
+        required: true
+        type: string
 
 jobs:
   build-push:
@@ -20,6 +26,6 @@ jobs:
           gcp_project_id: ${{ vars.GCP_PROJECT_ID_S }}
           gcp_region: ${{ vars.GCP_REGION }}
           registry: ${{ vars.GCP_REGISTRY }}
-          image_tag: ${{ github.sha }}
+          image_tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GHA_SA_EMAIL }}
