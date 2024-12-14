@@ -6,5 +6,6 @@ variable "env_tier" {
 
 variable "gke_release_channel" {
   description = "The release channel of the GKE cluster"
+  type        = string
   default     = "REGULAR"
 }
