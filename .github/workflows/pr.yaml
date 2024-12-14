@@ -38,8 +38,6 @@ jobs:
 
       - uses: terraform-linters/setup-tflint@v4
         name: Setup TFLint
-        with:
-          tflint_version: "0.54.0"
 
       - name: Run tflint
         run: tflint --chdir=terraform -c $(pwd)/.tflint.hcl --recursive
@@ -61,7 +59,7 @@ jobs:
           cd ../1-environments/staging
           tofu init -backend=false
           tofu validate
-          cd ../1-environments/prod
+          cd ../../1-environments/prod
           tofu init -backend=false
           tofu validate
 
@@ -109,7 +107,6 @@ jobs:
     needs: detect-changes
     if: |
       needs.detect-changes.outputs.application == 'true' ||
-      needs.detect-changes.outputs.appinfra == 'true' ||
       needs.detect-changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -120,7 +117,7 @@ jobs:
         uses: ./.github/actions/build-push-images
         with:
           push_images: 'false'
-          gcp_project_id: ${{ vars.GCP_PROJECT_ID_S }}
+          gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
           gcp_region: ${{ vars.GCP_REGION }}
           registry: ${{ vars.GCP_REGISTRY }}
           image_tag: ${{ github.sha }}

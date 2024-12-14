@@ -15,6 +15,9 @@ on:
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,7 +26,7 @@ jobs:
         uses: ./.github/actions/build-push-images
         with:
           push_images: 'true'
-          gcp_project_id: ${{ vars.GCP_PROJECT_ID_S }}
+          gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
           gcp_region: ${{ vars.GCP_REGION }}
           registry: ${{ vars.GCP_REGISTRY }}
           image_tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
