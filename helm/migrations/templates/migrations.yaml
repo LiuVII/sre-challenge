@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{ .Chart.Name }}-migrations"
+  name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
 spec:
   backoffLimit: 3
@@ -16,7 +16,7 @@ spec:
         effect: NoSchedule
       containers:
         - name: migrations
-          image: "{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /bin/sh
@@ -32,7 +32,12 @@ spec:
                   name: {{ .Values.config.db_config }}
                   key: DB_MIGRATOR_USER
             - name: LIQUIBASE_COMMAND_CONTEXT_FILTER
-              value: {{ .Values.migrations.context }}
+              value: {{ .Values.context }}
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.postgres_creds }}
+                  key: migrator-password
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
@@ -48,11 +53,6 @@ spec:
                 configMapKeyRef:
                   name: {{ .Values.config.db_config }}
                   key: DB_PORT
-            - name: LIQUIBASE_COMMAND_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.config.postgres_creds }}
-                  key: migrator-password
           # TODO: add proper sec context
           # securityContext:
           #   readOnlyRootFilesystem: true
@@ -60,9 +60,9 @@ spec:
           #   runAsUser: 1000
           resources:
             requests:
-              memory: {{ .Values.migrations.resources.requests.memory | quote }}
-              cpu: {{ .Values.migrations.resources.requests.cpu | quote }}
+              memory: {{ .Values.resources.requests.memory | quote }}
+              cpu: {{ .Values.resources.requests.cpu | quote }}
             limits:
-              memory: {{ .Values.migrations.resources.limits.memory | quote }}
-              cpu: {{ .Values.migrations.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory | quote }}
+              cpu: {{ .Values.resources.limits.cpu | quote }}
       
