@@ -96,11 +96,13 @@ jobs:
       - name: Lint Helm Charts
         run: |
           helm lint helm/todo-app/
+          helm lint helm/migrations/
           helm lint helm/postgres/
           
       - name: Template Validation
         run: |
           helm template todo-app helm/todo-app/
+          helm template todo-app helm/migrations/
           helm template postgres helm/postgres/
   
   build-check:

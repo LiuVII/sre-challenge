@@ -1,4 +1,3 @@
-# scripts/dev_run.sh
 #!/bin/bash
 
 set -e
@@ -18,7 +17,6 @@ echo "
 Local development environment is ready:
 - Todo app: http://localhost:8080
 - Primary DB: localhost:5432
-- Replica DB: localhost:5433
 
 Logs can be viewed with: docker compose logs -f
 "
