@@ -89,6 +89,9 @@ helm upgrade --install postgres ${DB_HELM_CHART_PATH} \
   --debug
 
 # Install/upgrade app db migrations chart
+echo "Cleaning up previous migration job..."
+kubectl delete job migrations -n ${NAMESPACE} --ignore-not-found=true
+
 echo "Deploying migrations..."
 helm upgrade --install migrations ${MIGRATIONS_HELM_CHART_PATH} \
   --namespace ${NAMESPACE} \
@@ -112,6 +115,6 @@ helm upgrade --install todo-app ${APP_HELM_CHART_PATH} \
   --debug
 
 # Clean up
-rm /tmp/values-gcp.yaml
+# rm /tmp/values-gcp.yaml
 
 echo "Deployment completed!"
