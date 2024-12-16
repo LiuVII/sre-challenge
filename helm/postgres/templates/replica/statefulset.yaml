@@ -15,6 +15,7 @@ spec:
       labels:
         app: {{ .Values.replica.name }}
     spec:
+      serviceAccountName: {{ .Values.replica.name }}
       # TODO: consider adding readonlyfilesystem
       securityContext:
         fsGroup: 999

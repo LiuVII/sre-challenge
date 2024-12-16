@@ -15,6 +15,7 @@ spec:
       labels:
         app: {{ .Values.primary.name }}
     spec:
+      serviceAccountName: {{ .Values.primary.name }}
       securityContext:
         fsGroup: 999
         # runAsUser: 999

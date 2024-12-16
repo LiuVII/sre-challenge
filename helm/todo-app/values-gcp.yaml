@@ -5,6 +5,9 @@ ingress:
   cert: todo-app-cert
   host: "${IP_ADDRESS}.nip.io"
 
+
+workloadIdentityServiceAccount: "${GCP_SA_EMAIL}"
+
 image:
   repository: ${IMAGE_REPOSITORY}/todo-app
   tag: ${TAG}

@@ -29,6 +29,12 @@ spec:
         operator: Equal
         value: {{ .Values.tolerations_workload_name }}
         effect: NoSchedule
+      serviceAccountName: {{ .Chart.Name }}
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 1
       containers:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

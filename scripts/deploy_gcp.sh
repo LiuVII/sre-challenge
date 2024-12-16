@@ -14,6 +14,7 @@ IMAGE_REPOSITORY="${REGION}-docker.pkg.dev/${PROJECT_ID}/sre-challenge-repositor
 CLUSTER_NAME="sre-challenge-cluster-s"
 IP_ADDRESS="34.54.49.46"
 IP_NAME="sre-challenge-ip-s"
+GCP_SA_EMAIL="sre-challenge-workload-s@sre-challenge-b71f132d.iam.gserviceaccount.com"
 
 # Parse command line arguments
 BUILD_PUSH=false
@@ -55,6 +56,7 @@ export TAG
 export IMAGE_REPOSITORY
 export IP_ADDRESS
 export IP_NAME
+export GCP_SA_EMAIL
 
 # Get GKE credentials
 echo "Getting GKE cluster credentials..."
@@ -85,6 +87,7 @@ echo "Deploying PostgreSQL..."
 helm upgrade --install postgres ${DB_HELM_CHART_PATH} \
   --namespace ${NAMESPACE} \
   --values ${DB_HELM_CHART_PATH}/values.yaml \
+  --set workloadIdentityServiceAccount="$GCP_SA_EMAIL" \
   --wait \
   --debug
 
@@ -99,6 +102,7 @@ helm upgrade --install migrations ${MIGRATIONS_HELM_CHART_PATH} \
   --set image.repository="${IMAGE_REPOSITORY}/todo-app-migrations" \
   --set image.tag="${TAG}" \
   --set image.pullPolicy="IfNotPresent" \
+  --set workloadIdentityServiceAccount="$GCP_SA_EMAIL" \
   --wait \
   --debug
 

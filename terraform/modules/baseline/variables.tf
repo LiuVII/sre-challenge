@@ -9,3 +9,9 @@ variable "gke_release_channel" {
   type        = string
   default     = "REGULAR"
 }
+
+variable "k8s_namespace" {
+  description = "k8s namespace that contains app"
+  type        = string
+  default     = "todo-app"
+}
