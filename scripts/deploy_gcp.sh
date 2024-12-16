@@ -6,9 +6,6 @@ NAMESPACE="todo-app"
 APP_HELM_CHART_PATH="./helm/todo-app"
 MIGRATIONS_HELM_CHART_PATH="./helm/migrations"
 DB_HELM_CHART_PATH="./helm/postgres"
-TAG="1.0.2"
-APP_IMAGE_NAME="todo-app:${TAG}"
-MIGRATIONS_IMAGE_NAME="todo-app-migrations:${TAG}"
 PROJECT_ID="sre-challenge-b71f132d"
 REGION="europe-west1"
 IMAGE_REPOSITORY="${REGION}-docker.pkg.dev/${PROJECT_ID}/sre-challenge-repository"
@@ -17,6 +14,42 @@ IMAGE_REPOSITORY="${REGION}-docker.pkg.dev/${PROJECT_ID}/sre-challenge-repositor
 CLUSTER_NAME="sre-challenge-cluster-s"
 IP_ADDRESS="34.54.49.46"
 IP_NAME="sre-challenge-ip-s"
+
+# Parse command line arguments
+BUILD_PUSH=false
+TAG=""
+
+usage() {
+  echo "Usage: $0 -t <tag> [-b]"
+  echo "  -t: Version tag for deployment (e.g., 1.0.0)"
+  echo "  -b: Build and push images to registry (optional)"
+  exit 1
+}
+
+while getopts "t:b" opt; do
+  case ${opt} in
+    t )
+      # Validate tag format
+      if [[ ! $OPTARG =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: Tag must be in semantic versioning format (e.g., 1.0.0)"
+        usage
+      fi
+      TAG=$OPTARG
+      ;;
+    b )
+      BUILD_PUSH=true
+      ;;
+    \? )
+      usage
+      ;;
+  esac
+done
+
+# Check if tag is empty or just contains whitespace
+if [ -z "${TAG// }" ]; then
+  echo "Error: Tag parameter (-t) is required and cannot be empty"
+  usage
+fi
 
 export TAG
 export IMAGE_REPOSITORY
@@ -33,16 +66,19 @@ kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -
 # Set current context to namespace
 kubectl config set-context $(kubectl config current-context) --namespace ${NAMESPACE}
 
-# # Build and push Docker image
-# echo "Building and pushing Docker images..."
-# gcloud auth configure-docker ${REGION}-docker.pkg.dev
-# # docker build -t ${APP_IMAGE_NAME} -f src/Dockerfile .
-# docker tag "${APP_IMAGE_NAME}" "${IMAGE_REPOSITORY}/${APP_IMAGE_NAME}"
-# docker push "${IMAGE_REPOSITORY}/${APP_IMAGE_NAME}"
+if [ "$BUILD_PUSH" = true ]; then
+  echo "Authenticating with GCP Artifact Registry..."
+  gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
-# # docker build -t ${MIGRATIONS_IMAGE_NAME} -f ./migrations/Dockerfile . .
-# docker tag "${MIGRATIONS_IMAGE_NAME}" "${IMAGE_REPOSITORY}/${MIGRATIONS_IMAGE_NAME}"
-# docker push "${IMAGE_REPOSITORY}/${MIGRATIONS_IMAGE_NAME}"
+  # Build and push Docker image
+  echo "Building and pushing Docker images..."
+  
+  docker build -t "${IMAGE_REPOSITORY}/todo-app:${TAG}" -f src/Dockerfile .
+  docker build -t "${IMAGE_REPOSITORY}/todo-app-migrations:${TAG}" -f ./migrations/Dockerfile .
+
+  docker push "${IMAGE_REPOSITORY}/todo-app:${TAG}"
+  docker push "${IMAGE_REPOSITORY}/todo-app-migrations:${TAG}"
+fi
 
 # Install/upgrade PostgreSQL chart
 echo "Deploying PostgreSQL..."
