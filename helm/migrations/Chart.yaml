@@ -1,4 +1,4 @@
-# helm/todo-app/Chart.yaml
+# helm/migrations/Chart.yaml
 apiVersion: v2
 name: migrations
 description: Schema management for Todo application

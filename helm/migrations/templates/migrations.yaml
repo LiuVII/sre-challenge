@@ -1,4 +1,4 @@
-# helm/todo-app/templates/migrations.yaml
+# helm/migrations/templates/migrations.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:

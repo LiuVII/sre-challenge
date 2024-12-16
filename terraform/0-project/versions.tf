@@ -1,4 +1,4 @@
-# terraform/0-bootstrap/versions.tf
+# terraform/0-project/versions.tf
 terraform {
   required_version = "~> 1.8"
   required_providers {

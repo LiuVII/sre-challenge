@@ -1,4 +1,4 @@
-# helm/todo-app/values.yaml
+# helm/migrations/values.yaml
 namespace: todo_app
 tolerations_workload_name: application
 
