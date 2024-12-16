@@ -20,6 +20,18 @@ else
   k3d cluster create $CLUSTER_NAME --servers 1 --agents 3
 fi
 
+# Switch kubectl context to the new cluster
+echo "Switching kubectl context to k3d cluster..."
+k3d kubeconfig merge ${CLUSTER_NAME}
+kubectl config use-context "k3d-${CLUSTER_NAME}"
+
+# Verify correct context
+CURRENT_CONTEXT=$(kubectl config current-context)
+if [[ ${CURRENT_CONTEXT} != "k3d-${CLUSTER_NAME}" ]]; then
+    echo "Error: Failed to switch to k3d cluster context"
+    exit 1
+fi
+
 # Build and push migrations Docker image
 echo "Building Docker image: $MIGRATIONS_IMAGE_NAME..."
 docker build -t $MIGRATIONS_IMAGE_NAME -f ./migrations/Dockerfile .
