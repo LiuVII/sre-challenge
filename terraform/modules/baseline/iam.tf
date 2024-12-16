@@ -36,3 +36,14 @@ resource "google_project_iam_member" "workload_identity_roles" {
   role    = each.key
   member  = "serviceAccount:${google_service_account.workload_identity.email}"
 }
+
+resource "google_service_account_iam_binding" "workload_identity_binding" {
+  service_account_id = google_service_account.workload_identity.name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    "serviceAccount:${local.project_id}.svc.id.goog[${var.k8s_namespace}/todo-app]",
+    "serviceAccount:${local.project_id}.svc.id.goog[${var.k8s_namespace}/postgres-primary]",
+    "serviceAccount:${local.project_id}.svc.id.goog[${var.k8s_namespace}/postgres-replica]",
+    "serviceAccount:${local.project_id}.svc.id.goog[${var.k8s_namespace}/migrations]"
+  ]
+}
