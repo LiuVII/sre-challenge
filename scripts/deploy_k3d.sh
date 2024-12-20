@@ -52,7 +52,11 @@ kubectl create namespace $NAMESPACE || echo "Namespace $NAMESPACE already exists
 
 # Deploy db Helm chart
 echo "Deploying db Helm chart..."
-helm upgrade --install postgres $DB_HELM_CHART_PATH --namespace $NAMESPACE --wait --debug
+helm upgrade --install postgres $DB_HELM_CHART_PATH \
+  --namespace $NAMESPACE \
+  --set podsIps="10.42.0.0/16" \
+  --wait \
+  --debug
 
 # Deploy app db migrations Helm chart
 echo "Deploying migrations Helm chart..."
