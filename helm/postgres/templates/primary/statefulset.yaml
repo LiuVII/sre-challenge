@@ -16,9 +16,12 @@ spec:
         app: {{ .Values.primary.name }}
     spec:
       serviceAccountName: {{ .Values.primary.name }}
+      # Pod-level security context handles user/group for all containers
       securityContext:
         fsGroup: 999
-        # runAsUser: 999
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
       tolerations:
       - key: workload
         operator: Equal
@@ -60,17 +63,31 @@ spec:
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:
+            # Main data directory - made writable by fsGroup
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
               subPath: pgdata
+            # Required read-only configs
             - name: postgres-config
               mountPath: /etc/postgresql
+              readOnly: true
             - name: postgres-init
               mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            # Required writable directories
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run/postgresql
+            # Optional: Add if needed for SSL
+            #- name: ssl-dir
+            #  mountPath: /etc/ssl/postgresql
+          # Container-level security context only needs specific container settings
           securityContext:
-            # TODO: consider adding readonlyfilesystem
-            # readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
@@ -106,6 +123,10 @@ spec:
               - key: init-users.sh
                 path: init-users.sh
                 mode: 0755
+        - name: tmp-dir
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

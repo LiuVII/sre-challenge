@@ -15,6 +15,9 @@ spec:
         operator: Equal
         value: {{ .Values.tolerations_workload_name }}
         effect: NoSchedule
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
       containers:
         - name: migrations
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -54,11 +57,8 @@ spec:
                 configMapKeyRef:
                   name: {{ .Values.config.db_config }}
                   key: DB_PORT
-          # TODO: add proper sec context
-          # securityContext:
-          #   readOnlyRootFilesystem: true
-          #   runAsNonRoot: true
-          #   runAsUser: 1000
+          securityContext:
+            readOnlyRootFilesystem: true
           resources:
             requests:
               memory: {{ .Values.resources.requests.memory | quote }}
