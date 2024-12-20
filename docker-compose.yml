@@ -21,7 +21,6 @@ services:
       context: .
       dockerfile: ./migrations/Dockerfile
     environment:
-      # LIQUIBASE_COMMAND_CHANGELOG_FILE: changelog/changelog-master.yaml
       LIQUIBASE_COMMAND_USERNAME: todo_app_user
       LIQUIBASE_COMMAND_PASSWORD: localdev
       LIQUIBASE_COMMAND_CONTEXT_FILTER: dev

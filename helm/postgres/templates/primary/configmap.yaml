@@ -14,23 +14,29 @@ data:
     max_replication_slots = 10
     hot_standby = on
     hba_file = '/etc/postgresql/pg_hba.conf'
+    # Security settings
+    password_encryption = scram-sha-256
+    log_connections = on
+    log_disconnections = on
+    log_error_verbosity = default
+    log_min_messages = warning
     
   pg_hba.conf: |
-    # Local connections - using trust for superuser local connections
-    local   all             {{ .Values.users.superuser }}                                trust
+    # Local connections - using peer for superuser local connections
+    local   all             {{ .Values.users.superuser }}                                peer
     host    all             {{ .Values.users.superuser }}         127.0.0.1/32          scram-sha-256
     host    all             {{ .Values.users.superuser }}         ::1/128               scram-sha-256
     
     # Replication
-    local   replication     {{ .Values.users.superuser }}                               trust
+    local   replication     {{ .Values.users.superuser }}                               peer
     host    replication     all              127.0.0.1/32         scram-sha-256
     host    replication     all              ::1/128              scram-sha-256
-    host    replication     {{ .Values.users.replicator }}       0.0.0.0/0           scram-sha-256
-    host    {{ .Values.database.name }}           {{ .Values.users.replicator }}       0.0.0.0/0        scram-sha-256
+    host    replication     {{ .Values.users.replicator }}      {{ .Values.podsIps }}           scram-sha-256
+    host    {{ .Values.database.name }}           {{ .Values.users.replicator }}      {{ .Values.podsIps }}        scram-sha-256
     
     # Application and migrator access
-    host    {{ .Values.database.name }}           {{ .Values.users.app }}       0.0.0.0/0        scram-sha-256
-    host    {{ .Values.database.name }}           {{ .Values.users.migrator }}   0.0.0.0/0        scram-sha-256
+    host    {{ .Values.database.name }}           {{ .Values.users.app }}      {{ .Values.podsIps }}        scram-sha-256
+    host    {{ .Values.database.name }}           {{ .Values.users.migrator }}   {{ .Values.podsIps }}        scram-sha-256
 
   init-users.sh: |
     #!/bin/bash

@@ -15,6 +15,7 @@ CLUSTER_NAME="sre-challenge-cluster-s"
 IP_ADDRESS="34.54.49.46"
 IP_NAME="sre-challenge-ip-s"
 GCP_SA_EMAIL="sre-challenge-workload-s@sre-challenge-b71f132d.iam.gserviceaccount.com"
+CLUSTER_PODS_IPS="10.11.0.0/16"
 
 # Parse command line arguments
 BUILD_PUSH=false
@@ -88,6 +89,7 @@ helm upgrade --install postgres ${DB_HELM_CHART_PATH} \
   --namespace ${NAMESPACE} \
   --values ${DB_HELM_CHART_PATH}/values.yaml \
   --set workloadIdentityServiceAccount="$GCP_SA_EMAIL" \
+  --set podsIps="$CLUSTER_PODS_IPS" \
   --wait \
   --debug
 

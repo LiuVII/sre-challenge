@@ -16,10 +16,11 @@ spec:
         app: {{ .Values.replica.name }}
     spec:
       serviceAccountName: {{ .Values.replica.name }}
-      # TODO: consider adding readonlyfilesystem
       securityContext:
         fsGroup: 999
-        # runAsUser: 999
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
       tolerations:
       - key: workload
         operator: Equal
@@ -74,11 +75,18 @@ spec:
             - name: postgres-config
               mountPath: /etc/postgresql
           securityContext:
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - postgres
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
           env:
             - name: POSTGRES_DB
               value: {{ .Values.database.name }}
@@ -102,8 +110,16 @@ spec:
               subPath: pgdata
             - name: postgres-config
               mountPath: /etc/postgresql
+            # Required writable directories
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run/postgresql
           securityContext:
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ .Values.users.superuser }}"]
@@ -132,6 +148,10 @@ spec:
                 path: postgresql.conf
               - key: pg_hba.conf
                 path: pg_hba.conf
+        - name: tmp-dir
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
