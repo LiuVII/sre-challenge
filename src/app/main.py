@@ -13,12 +13,39 @@ from google.cloud.logging import Client
 from markupsafe import escape
 from sqlalchemy.engine.url import URL
 from sqlalchemy import text
+from waitress import serve
+
+class StatusAwareHandler(logging.Handler):
+    def __init__(self, gcp_handler):
+        super().__init__()
+        self.gcp_handler = gcp_handler
+        
+    def emit(self, record):
+        if hasattr(record, 'status_code'):
+            status_code = record.status_code
+            if status_code >= 500:
+                record.levelno = logging.ERROR
+                record.levelname = 'ERROR'
+            elif status_code == 404:
+                record.levelno = logging.INFO
+                record.levelname = 'INFO'
+            elif status_code >= 400:
+                record.levelno = logging.WARNING
+                record.levelname = 'WARNING'
+        
+        self.gcp_handler.emit(record)
 
 def setup_logging() -> None:
     try:
         from google.cloud.logging import Client
         client = Client()
         client.setup_logging()
+
+        # Configure Waitress logging
+        waitress_logger = logging.getLogger('waitress')
+        waitress_logger.setLevel(logging.INFO)
+        waitress_logger.propagate = False
+        waitress_logger.addHandler(StatusAwareHandler(client.get_default_handler()))
     except Exception as e:
         logging.basicConfig(
             level=logging.INFO,
@@ -296,13 +323,6 @@ def check_db() -> bool:
         db_available = False
         return False
 
-@app.before_request
-def check_db_status():
-    """Check DB status before each request."""
-    if not request.path == '/health/live':  # Skip DB check for liveness probe
-        if not db_available and not check_db():
-            return render_template('maintenance.html'), 503
-
 # Health check endpoints
 @app.route('/health/live')
 def liveness():
@@ -317,4 +337,11 @@ def readiness():
     return {'status': 'unavailable'}, 503
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    env = os.getenv('FLASK_ENV')
+    if env == 'development':
+        # Development server with debug and reloading
+        app.run(host='0.0.0.0', port=8080, debug=True)
+    elif env == 'production':
+        serve(app, host='0.0.0.0', port=8080, threads=4)
+    else:
+        raise ValueError(f"Invalid FLASK_ENV value: {env}. Must be 'development' or 'production'")
