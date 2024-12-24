@@ -40,12 +40,10 @@ module "gke" {
     }
   ]
 
-  database_encryption = []
-  # TODO: enable database encryption
-  # database_encryption = [{
-  #   state    = "ENCRYPTED"
-  #   key_name = "projects/your-key-project/locations/global/keyRings/your-keyring/cryptoKeys/your-key"
-  # }]
+  database_encryption = [{
+    state    = "ENCRYPTED"
+    key_name = google_kms_crypto_key.gke.id
+  }]
 
   enable_vertical_pod_autoscaling = true
   horizontal_pod_autoscaling      = true
