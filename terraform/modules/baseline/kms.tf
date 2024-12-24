@@ -1,6 +1,6 @@
 resource "google_kms_key_ring" "gke" {
   name     = "gke-keyring"
-  location = "global"
+  location = "europe-west1"
   project  = local.project_id
 }
 

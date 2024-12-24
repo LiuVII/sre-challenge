@@ -29,6 +29,7 @@ resource "google_project" "todo_app" {
 
 resource "google_project_service" "apis" {
   for_each = toset([
+    "cloudkms.googleapis.com",          # For KMS
     "compute.googleapis.com",           # Compute Engine API
     "container.googleapis.com",         # Kubernetes Engine API
     "servicenetworking.googleapis.com", # Service Networking API
